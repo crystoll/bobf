@@ -1,0 +1,55 @@
+{
+  "players": [
+    {
+      "name": "Raaka-Bot",
+      "position": { "x": 87, "y": 15 },
+      "score": 0,
+      "money": 5000,
+      "state": "MOVE",
+      "timeInState": 0,
+      "usableItems": [],
+      "actionCount": 1,
+      "health": 80
+    }
+  ],
+  "finishedPlayers": [],
+  "items": [
+    {
+      "price": 1795,
+      "discountPercent": 77,
+      "position": { "x": 17, "y": 12 },
+      "type": "WEAPON",
+      "isUsable": true
+    },
+    {
+      "price": 3950,
+      "discountPercent": 18,
+      "position": { "x": 11, "y": 11 },
+      "type": "JUST_SOME_JUNK",
+      "isUsable": false
+    },
+    {
+      "price": 773,
+      "discountPercent": 38,
+      "position": { "x": 29, "y": 15 },
+      "type": "JUST_SOME_JUNK",
+      "isUsable": false
+    },
+    {
+      "price": 2600,
+      "discountPercent": 90,
+      "position": { "x": 10, "y": 8 },
+      "type": "WEAPON",
+      "isUsable": true
+    },
+    {
+      "price": 595,
+      "discountPercent": 69,
+      "position": { "x": 38, "y": 22 },
+      "type": "JUST_SOME_JUNK",
+      "isUsable": false
+    }
+  ],
+  "round": 1089,
+  "shootingLines": []
+}

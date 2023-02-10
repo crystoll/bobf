@@ -1,0 +1,25 @@
+@url=https://bots-of-black-friday-helsinki.azurewebsites.net/
+
+
+POST {{url}}/register
+Content-Type: application/json
+
+{
+    "playerName": "Raaka-Bot"
+}
+
+###
+
+
+GET {{url}}/gamestate
+#Authorization: {{token}}
+
+###
+
+@playerId="24a1a81b-dd2c-4ca4-855c-4f86b8912a2d"
+
+PUT {{url}}/{{playerId}}/move
+Content-Type: application/json
+
+"LEFT"
+
