@@ -1,10 +1,13 @@
 import requests
 import time
 import random
+import math
 
 api_url = "https://bots-of-black-friday-helsinki.azurewebsites.net"
 bot_name = 'Raaka-Bot'
 visited_coords = []
+MIN_HEALTH=40
+HIGH_SCORE=6000
 
 def register():
     response = requests.post(f"{api_url}/register",
@@ -19,7 +22,7 @@ def gamestate():
     return requests.get(f"{api_url}/gamestate").json()
 
 
-def move(playerId, direction):
+def act(playerId, direction):
     requests.put(f"{api_url}/{playerId}/move",
                  json=direction
                  )
@@ -61,8 +64,8 @@ def calculate_valid_moves(pos, map):
     return valid_directions
 
 def calculate_destination_coords(origin, direction):
-    x = origin['x']
-    y = origin ['y']
+    x = origin[0]
+    y = origin [1]
     if direction == 'UP':
         y = y -1
     if direction == 'DOWN':
@@ -80,57 +83,98 @@ def calculate_exit_tile_coords(map):
             if map_tiles[y][x] == 'o':
                 return (x,y)
 
+
+destination = None
+
+def tick(id,map):
+    global destination
+    gamestate_response = gamestate()
+    my_bot = get_my_bot(bot_name, gamestate_response)
+    destination = decide_destination(gamestate_response)
+    # if my_bot['health'] < MIN_HEALTH:
+    #     destination = decide_destination(gamestate_response)
+    if len(my_bot['usableItems']) > 0:
+        item = my_bot['usableItems'][0]
+        print(f'Got a usable item, let''s use it! {item}')        
+        act(id, 'USE')
+        return
+#    if destination == None:
+    pos = (my_bot['position']['x'],my_bot['position']['y'])
+    print(f'Player position is {pos}, moving towards {destination}')
+    if pos == destination:
+        # TODO: Check if item still exists!
+        # But.. what should we do if item is gone?
+        # TODO: We should actually check this every round?
+        # Perhaps store the whole item in global var? 
+        # Perhaps check this first, and if it's gone, we check new destination for next round?
+        # items = [item for item in gamestate_response['items'] if item['position']['x'] == pos[0] and item['position']['y'] == pos[1]]
+        # if len(items) == 0:
+        #     print('item is gone! skip it.')
+        act(id, 'PICK')
+        destination = None
+        return
+    direction = ''
+    if pos[0] > destination[0]:
+        direction = 'LEFT'
+    elif pos[0] < destination[0]:
+        direction = 'RIGHT'
+    elif pos[1] > destination[1]:
+        direction = 'UP'
+    elif pos[1] < destination[1]:
+        direction = 'DOWN'
+    else:
+        print('Reached the goal! Let''s pickup next round')
+    destination_coords = calculate_destination_coords(pos, direction)
+    print(f'Want to move to direction {direction} to coords {destination_coords}')
+    if (map['tiles'][destination_coords[1]][destination_coords[0]]) == 'x':
+        print('Invalid move, would move to wall, so let''s move up')
+        act (id, 'UP')
+    else:
+        act(id, direction)
+    
+
+    # TODO
+    # Decide destination. In this case, 9, 4
+    # gamestate_response['items']
+    # make one move towards it, filter out any invalid moves
+    # need some routing to go around the wall
+
+
+def get_ordered_list(points, x, y):
+    print(f'sorting points {points}')
+    points.sort(key = lambda p: (p['position']['x'] - x)**2 + (p['position']['y'] - y)**2)
+    return points
+
+def decide_destination(gamestate):
+    # TODO: Could dynamically try to figure out best items to pick
+    # TODO: Could fetch closest item from list
+    # if gamestate['']
+    my_bot = get_my_bot(bot_name, gamestate)
+    if my_bot['score'] > HIGH_SCORE:
+        print('New high score, heading for exit')
+        return (9,4) # Exit
+    if my_bot['health'] < MIN_HEALTH:
+        print('No money, or low health, going for exit')
+        return (9,4) # Exit
+
+    items = [item for item in gamestate['items'] if item['price'] <= my_bot['money']]
+    if len(items) == 0:
+        print('No items, going for exit')
+        return (9,4) # Exit
+    else:        
+        # TODO: Sort items based on my preferences (weapon, distance, discount, price vs my own money)
+        items = get_ordered_list(items,my_bot['position']['x'],my_bot['position']['y'])
+        item = items[0]
+        print(f'Yes items, going for {item}')
+        return (item['position']['x'],item['position']['y'])
+
+
 if __name__ == '__main__':
     register_response = register()
     id = register_response['id']
     player = register_response['player']
     map = register_response['map']
-    map_width = len(map['tiles'][0])
-    map_height = len(map['tiles'])
-    print(f'Map size: {map_width} X {map_height}')
-    exit_tile = calculate_exit_tile_coords(map)
-    exit_tile_char = map['tiles'][exit_tile[1]][exit_tile[0]]
-    print(f'Exit tile at {exit_tile} with value {exit_tile_char}')
-
     while True:
         time.sleep(0.5)
-        gamestate_response = gamestate()
-        my_bot = get_my_bot(bot_name, gamestate_response)
-        pos = my_bot['position']
-        print(f'Player position is {pos}')
-        #my_bot['money'] > 0 and my_bot['health'] > 50
-        gather_mode = True if my_bot['score'] == 0 else False
-        print(f'Gather mode: {gather_mode}')
-        if gather_mode:
-            valid_directions = calculate_valid_moves(pos, map)
-            print(f'valid moves: {valid_directions}')
-            if len(valid_directions) == 0:
-                print('Ran out of valid directions, need to finetune the exit rulez :)')
-                exit(-1)
-            random_move_index = random.randint(0, len(valid_directions)-1)
-            selected_dir = valid_directions[random_move_index]
-            destination_coords = calculate_destination_coords(pos, selected_dir)
-            visited_coords.append(destination_coords)        
-            print(f'Moving player {id} to {selected_dir} from {pos} to {destination_coords}')
-            # Calculate possible ways to move
-            # Move to possible way
-            move(id, selected_dir)
-            time.sleep(0.5)
-        else:
-            print('Go to exit mode, not implemented yet, but go to o')
-            # Map is 92 X 28
-            # Cashier is 9,4
-            if pos['y'] > 2:
-                move(id, 'UP')
-            elif pos['x'] > 4:
-                move(id, 'LEFT')
-            elif pos['x'] < 4:
-                move(id, 'RIGHT')
-            else:
-                move(id, 'DOWN')
-            time.sleep(0.5)                
-            # if pos['x'] >                 
-
-            # Need pathfinding, how to move closer to o, while dodging the walls
-            # Can hardcode this, if not in middle, move up/down whichever is closer, then move to same col as o, then move up/down to it
-         
+        tick(id, map)
+    

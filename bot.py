@@ -1,0 +1,2 @@
+# class Bot:
+#     strategy = 'TERMINATOR' # GO_TO_EXIT, GATHER_HEALTH, PICKUP_CLOSEST
