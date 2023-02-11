@@ -6,8 +6,9 @@ import math
 api_url = "https://bots-of-black-friday-helsinki.azurewebsites.net"
 bot_name = 'Raaka-Bot'
 visited_coords = []
-MIN_HEALTH=40
+MIN_HEALTH=30
 HIGH_SCORE=6000
+current_health = 100
 
 def register():
     response = requests.post(f"{api_url}/register",
@@ -46,7 +47,7 @@ def calculate_valid_moves(pos, map):
     mapstate_down = map['tiles'][y+1][x]
     mapstate_left = map['tiles'][y][x-1]
     mapstate_right = map['tiles'][y][x+1]
-    print(f'Mapstate is {mapstate_zero}')
+    # print(f'Mapstate is {mapstate_zero}')
     for iy in range(y-1,y+1):
         for ix in range(x-1,x+1):
             print(map['tiles'][iy][ix])
@@ -88,31 +89,33 @@ destination = None
 
 def tick(id,map):
     global destination
+    global current_health
     gamestate_response = gamestate()
     my_bot = get_my_bot(bot_name, gamestate_response)
+    if my_bot['health'] != current_health:
+        print(f"*** Health changed from {current_health} to {my_bot['health']}!")
+        current_health = my_bot['health']
     destination = decide_destination(gamestate_response)
     # if my_bot['health'] < MIN_HEALTH:
     #     destination = decide_destination(gamestate_response)
     if len(my_bot['usableItems']) > 0:
-        item = my_bot['usableItems'][0]
-        print(f'Got a usable item, let''s use it! {item}')        
-        act(id, 'USE')
-        return
+        if len(gamestate_response['players']) > 1:
+            item = my_bot['usableItems'][0]
+            print(f'Got a gun, and there''s another player on board, let''s shoot! {item}')        
+            act(id, 'USE')
+            return
 #    if destination == None:
     pos = (my_bot['position']['x'],my_bot['position']['y'])
-    print(f'Player position is {pos}, moving towards {destination}')
-    if pos == destination:
-        # TODO: Check if item still exists!
-        # But.. what should we do if item is gone?
-        # TODO: We should actually check this every round?
-        # Perhaps store the whole item in global var? 
-        # Perhaps check this first, and if it's gone, we check new destination for next round?
-        # items = [item for item in gamestate_response['items'] if item['position']['x'] == pos[0] and item['position']['y'] == pos[1]]
-        # if len(items) == 0:
-        #     print('item is gone! skip it.')
-        act(id, 'PICK')
-        destination = None
-        return
+    #print(f'Player position is {pos}, moving towards {destination}')
+    if pos == destination and my_bot['state'] != 'PICK':
+        destination_items = [item for item in gamestate_response['items'] if item['position']['x'] == destination[0] and item['position']['y'] == destination[1]]
+        if len(destination_items) == 1:
+            price = destination_items[0]['price']*destination_items[0]['discountPercent']/100
+            if my_bot['money'] >= price:
+                #print(f'**** Gamestate just before picking up item {gamestate_response}')
+                act(id, 'PICK')
+                destination = None
+                return
     direction = ''
     if pos[0] > destination[0]:
         direction = 'LEFT'
@@ -125,7 +128,7 @@ def tick(id,map):
     else:
         print('Reached the goal! Let''s pickup next round')
     destination_coords = calculate_destination_coords(pos, direction)
-    print(f'Want to move to direction {direction} to coords {destination_coords}')
+    #print(f'Want to move to direction {direction} to coords {destination_coords}')
     if (map['tiles'][destination_coords[1]][destination_coords[0]]) == 'x':
         print('Invalid move, would move to wall, so let''s move up')
         act (id, 'UP')
@@ -139,9 +142,8 @@ def tick(id,map):
     # make one move towards it, filter out any invalid moves
     # need some routing to go around the wall
 
-
 def get_ordered_list(points, x, y):
-    print(f'sorting points {points}')
+    # print(f'sorting points {points}')
     points.sort(key = lambda p: (p['position']['x'] - x)**2 + (p['position']['y'] - y)**2)
     return points
 
@@ -150,22 +152,41 @@ def decide_destination(gamestate):
     # TODO: Could fetch closest item from list
     # if gamestate['']
     my_bot = get_my_bot(bot_name, gamestate)
-    if my_bot['score'] > HIGH_SCORE:
-        print('New high score, heading for exit')
-        return (9,4) # Exit
-    if my_bot['health'] < MIN_HEALTH:
+    if my_bot['health'] < MIN_HEALTH or my_bot['money'] < 200:
         print('No money, or low health, going for exit')
         return (9,4) # Exit
 
-    items = [item for item in gamestate['items'] if item['price'] <= my_bot['money']]
+    #print(f"Items before filtering by money: {gamestate['items']}")
+    items = [item for item in gamestate['items'] if item['price']*item['discountPercent']/100 <= my_bot['money']]
+    #print(f'Items after filtering by money: {items}')
+
+    # if my_bot['health'] < 50:
+    #     print('Health below 50, pick up only potions')
+    #     potions = [item for item in gamestate['items'] if item['type'] == 'POTION']
+    #     if len(potions) > 0:
+    #         print('Health less than 50, and potions exist, pick up potions')
+    #         items = potions
+    # else:
+    #     valuables = [item for item in gamestate['items'] if item['type'] != 'POTION']
+    #     if len(valuables) > 0:
+    #         print('Health more than 50, and valuables exist, pick up valuables')
+    #         items = valuables
+    
     if len(items) == 0:
         print('No items, going for exit')
         return (9,4) # Exit
     else:        
-        # TODO: Sort items based on my preferences (weapon, distance, discount, price vs my own money)
+        weapons = [item for item in items if item['type'] == 'WEAPON']
+        #print(f'Weapons after filtering by type: {weapons}')
+        if len(weapons) > 0:
+            #print('Found at least one weapon, so let''s go for closest weapon!')
+            items = weapons
+        else:
+            print('No weapons on board, so let''s go for nearest other item')
+            #print(f'Items that we checked: {items}')
         items = get_ordered_list(items,my_bot['position']['x'],my_bot['position']['y'])
         item = items[0]
-        print(f'Yes items, going for {item}')
+        # print(f'Yes items, going for {item}')
         return (item['position']['x'],item['position']['y'])
 
 

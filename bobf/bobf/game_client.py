@@ -1,8 +1,12 @@
 import requests
+import os
+from dotenv import dotenv_values
+
+config = dotenv_values(".env")
 
 class GameClient:
 
-    API_URL = "http://localhost:8080"
+    API_URL = config['API_URL']
 
     def register_bot(self, bot_name):
         response = requests.post(f"{self.API_URL}/register",

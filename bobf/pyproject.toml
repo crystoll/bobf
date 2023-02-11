@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "bobf"
+version = "0.1.0"
+description = "Bots of Black Friday"
+authors = ["Arto Santala <crystoll@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+requests = "^2.28.2"
+python-dotenv = "^0.21.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
