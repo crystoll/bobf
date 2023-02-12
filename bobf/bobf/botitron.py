@@ -188,7 +188,7 @@ def sort_by_discount(items):
 
 def decide_destination(gamestate):
     my_bot = get_my_bot(bot_name, gamestate)
-    if my_bot["health"] < MIN_HEALTH or my_bot["money"] < 500:
+    if my_bot["health"] < MIN_HEALTH or my_bot["money"] < 400:
         print("No money, or low health, going for exit")
         return (9, 4)  # Exit
     
