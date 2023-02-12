@@ -217,16 +217,16 @@ def decide_destination(gamestate):
     ]
 
     # Filter out items with lousy discount %
-    # items = [
-    #     item
-    #     for item in items
-    #     if item["discountPercent"] == 0 or item["discountPercent"] > 50
-    # ]
+    items = [
+        item
+        for item in items
+        if item["discountPercent"] == 0 or item["discountPercent"] > 60
+    ]
 
     # Alternative: Filter out items that are not potions or weapons - note: requires other players on map, this is TERMINATOR MODE
-    items = [
-        item for item in gamestate["items"] if item["type"] in ["POTION", "WEAPON"]
-    ]
+    # items = [
+    #     item for item in gamestate["items"] if item["type"] in ["POTION", "WEAPON"]
+    # ]
 
     potions = [item for item in items if item["type"] == "POTION"]
     valuables = [item for item in items if item["type"] != "POTION"]
