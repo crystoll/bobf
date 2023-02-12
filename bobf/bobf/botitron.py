@@ -155,9 +155,14 @@ def tick(id, map):
         return  # Possibly beneficial bug to register empty move?
     destination_coords = calculate_destination_coords(pos, direction)
     # print(f'Want to move to direction {direction} to coords {destination_coords}')
+    # TODO: Theoretically could hit the outer border too, should take care of the invalid moves in more clever fashion
+    # TODO: We should always have at least one valid move to take
     if (map["tiles"][destination_coords[1]][destination_coords[0]]) == "x":
-        print(f"\tInvalid move to {direction}, would move to wall, so let" "s move up")
-        act(id, "UP")
+        print(f"\tInvalid move to {direction}, would move to wall, so let" "s move up/down")
+        if pos[1] < 28/2:
+            act(id, "UP")
+        else:
+            act(id, "DOWN")                        
     else:
         print(f"\t MOVE TO {direction}")
         act(id, direction)
@@ -182,25 +187,48 @@ def sort_by_discount(items):
 
 
 def decide_destination(gamestate):
-    # TODO: Could dynamically try to figure out best items to pick
-    # TODO: Could fetch closest item from list
-    # if gamestate['']
     my_bot = get_my_bot(bot_name, gamestate)
-    if my_bot["health"] < MIN_HEALTH or my_bot["money"] < 200:
+    if my_bot["health"] < MIN_HEALTH or my_bot["money"] < 500:
         print("No money, or low health, going for exit")
         return (9, 4)  # Exit
+    
+    # TODO: Perhaps add another end condition:
+    # TODO: If none of the items on map can be picked up with the money you have
+    # TODO: Set a timer, count for 10 rounds, and then head for exit
+    # TODO: Alternatively, dabble a bit with the threshold, for example can you buy stuff if you have $400? Probably not easily. 
+    # TODO: But yes it is random generated, discounts could be up to 82%, so a cheap weapon could be bought for low moneys
+
+
 
     # Filter out items that are too expensive to pickup anyways
     items = [item for item in gamestate["items"] if item["price"]*(1-item["discountPercent"]/100) <= my_bot["money"]]
+
     # Filter out items with lousy discount %
-    #items = [item for item in gamestate["items"] if item["discountPercent"] == 0 or item["discountPercent"] > 30]
+    items = [item for item in gamestate["items"] if item["discountPercent"] == 0 or item["discountPercent"] > 40]
+
+    # Alternative: Filter out items that are not potions or weapons - note: requires other players on map, this is TERMINATOR MODE
+    #items = [item for item in gamestate["items"] if item["type"] in ['POTION','WEAPON']]
+
+    potions = [item for item in gamestate["items"] if item["type"] == "POTION"]
+    valuables = [item for item in gamestate["items"] if item["type"] != "POTION"]
+
+    # TODO: Somehow seems as if the distance algorithm is not working quite right, at least with potions it may pick one farther/farthest away
+    # TODO: Distance should be calculated including the obstacles, this require path-finding algo. 
+    # TODO: Path-finding algo would also let up play on more complex maps
+
     # If health is lower then 70, drain those beers to keep on going and reveal more items
     if my_bot["health"] < 60:
-        items = [item for item in gamestate["items"] if item["type"] == "POTION"]
-        items = sort_by_distance(items, my_bot["position"]["x"], my_bot["position"]["y"])
-    else:        
+        # Health is low, pickup potions
+        items = sort_by_distance(potions, my_bot["position"]["x"], my_bot["position"]["y"])
+    elif len(valuables) > 0:
+        # There are valuables, so sort them by discount and pickup closest
         items = sort_by_discount(items)
+    else:
+        # Just pick up the closest item, it's probably a potion
+        items = sort_by_distance(items, my_bot["position"]["x"], my_bot["position"]["y"]) 
 
+    # Hoover mode: Just pickup items by proximity to cleanup board
+    # items = sort_by_distance(items, my_bot["position"]["x"], my_bot["position"]["y"])
 
     if len(items) == 0:
         print("No suitable items to pick, going for exit")
@@ -219,7 +247,7 @@ def decide_destination(gamestate):
     #     pass
     
     item = items[0]
-    # print(f'Yes items, going for {item}')
+    print(f'Destination is item {item}')
     return (item["position"]["x"], item["position"]["y"])
 
 
@@ -241,4 +269,4 @@ if __name__ == "__main__":
 
     while True:
         tick(id, map)
-        time.sleep(0.5)
+        time.sleep(0.3)
