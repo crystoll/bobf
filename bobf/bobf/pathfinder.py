@@ -54,7 +54,7 @@ class PathFinder:
 
     # Give positions in format (y,x) to be compatible with map
     def find_route(self, pos1, pos2):
-        print(f'Finding route from {pos1} to {pos2}')
+        # print(f'Finding route from {pos1} to {pos2}')
         visited = []
         for i in range(0, self.map['width']):
             templist = []

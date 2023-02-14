@@ -65,20 +65,23 @@ class Bot:
         
     def calculate_discounted_price(self, item):
         return item["price"] * (100 - item["discountPercent"]) / 100
+    
+    def go_home(self, player):
+        self.destination_item = None
+        exit_pos = (self.map['exit']['x'],self.map['exit']['y'])
+        print(f'Out of money or life, heading for exit at {exit_pos}')
+        pos1 = (player['position']['x'],player['position']['y'])
+        route = self.pathfinder.find_route(pos1, exit_pos)
+        self.destination_route = route
 
 
     def find_next_destination_and_route(self, gamestate_response):
         player = self.get_my_bot(self.name, gamestate_response)
         if player == None:
-            print('No player in gamestate! Fatal exit right now!')
+            print('No player in gamestate, I suppose we are done.')
             exit(-1)
         if player['money'] < 500 or player['health'] < 30:
-            self.destination_item = None
-            exit_pos = (self.map['exit']['x'],self.map['exit']['y'])
-            print(f'Out of money or life, heading for exit at {exit_pos}')
-            pos1 = (player['position']['x'],player['position']['y'])
-            route = self.pathfinder.find_route(pos1, exit_pos)
-            self.destination_route = route
+            self.go_home(player)
             return
         def sort_by_distance(items, x, y):
             items.sort(
@@ -95,14 +98,20 @@ class Bot:
             available_weapons = sort_by_discount(weapons) 
             if len(available_weapons) > 0:
                 destination_item = available_weapons[0]
+            elif len(affordable_items) > 0:
+                destination_item = sort_by_discount(affordable_items)[0]
             else:
-                destination_item = affordable_items[0]
+                self.go_home(player)
+                return
         else:            
             available_potions =  sort_by_distance(potions, player['position']['x'],player['position']['y'])
             if len(available_potions) > 0:
                 destination_item = available_potions[0]
+            elif len(affordable_items) > 0:
+                destination_item = sort_by_discount(affordable_items)[0]                
             else:
-                destination_item = affordable_items[0]
+                self.go_home(player)
+                return
         if not hasattr(self, 'destination_item') or destination_item != self.destination_item:
             self.destination_item = destination_item
             print(f'Destination changed to: {self.destination_item}')
@@ -138,7 +147,7 @@ class Bot:
         
 
     def tick(self):
-        print('TICK!', end=" ")
+        # print('TICK!')
         gamestate_response = self.game_client.gamestate()
         self.find_next_destination_and_route(gamestate_response)
         player = self.get_my_bot(self.name, gamestate_response)
