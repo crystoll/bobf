@@ -1,6 +1,8 @@
 from game_client import GameClient
+from pathfinder import PathFinder
 import time
 import random 
+import json
 
 class Bot:
 
@@ -13,10 +15,12 @@ class Bot:
         self.name = name
         self.strategy = strategy
         self.game_client = GameClient()
-        bot_response = self.game_client.register_bot(self.name)        
+        bot_response = self.game_client.register_bot(self.name)
+        # print(json.dumps(bot_response))        
         self.id = bot_response['id']
         self.player = bot_response['player']
         self.map = bot_response['map']
+        self.pathfinder = PathFinder(self.map)
         self.make_random_move(self.player['position'])
         my_bot = None
         while my_bot == None:
@@ -58,36 +62,134 @@ class Bot:
             return None
         else:
             return my_bot[0]
+        
+    def calculate_discounted_price(self, item):
+        return item["price"] * (100 - item["discountPercent"]) / 100
+
+
+    def find_next_destination_and_route(self, gamestate_response):
+        player = self.get_my_bot(self.name, gamestate_response)
+        if player == None:
+            print('No player in gamestate! Fatal exit right now!')
+            exit(-1)
+        if player['money'] < 500 or player['health'] < 30:
+            self.destination_item = None
+            exit_pos = (self.map['exit']['x'],self.map['exit']['y'])
+            print(f'Out of money or life, heading for exit at {exit_pos}')
+            pos1 = (player['position']['x'],player['position']['y'])
+            route = self.pathfinder.find_route(pos1, exit_pos)
+            self.destination_route = route
+            return
+        def sort_by_distance(items, x, y):
+            items.sort(
+                key=lambda p: (p["position"]["x"] - x) ** 2 + (p["position"]["y"] - y) ** 2
+            )
+            return items
+        def sort_by_discount(items):
+            items.sort(key=lambda p: (p["discountPercent"]), reverse=True)
+            return items
+        affordable_items = [item for item in gamestate_response['items'] if self.calculate_discounted_price(item) <= player['money'] ]
+        weapons = [item for item in affordable_items if item['type'] == 'WEAPON']
+        potions = [item for item in affordable_items if item['type'] == 'POTION']
+        if len(weapons) > 0:
+            available_weapons = sort_by_discount(weapons) 
+            if len(available_weapons) > 0:
+                destination_item = available_weapons[0]
+            else:
+                destination_item = affordable_items[0]
+        else:            
+            available_potions =  sort_by_distance(potions, player['position']['x'],player['position']['y'])
+            if len(available_potions) > 0:
+                destination_item = available_potions[0]
+            else:
+                destination_item = affordable_items[0]
+        if not hasattr(self, 'destination_item') or destination_item != self.destination_item:
+            self.destination_item = destination_item
+            print(f'Destination changed to: {self.destination_item}')
+            pos1 = (player['position']['x'],player['position']['y'])
+            pos2 = ( destination_item['position']['x'], destination_item['position']['y'])
+            route = self.pathfinder.find_route(pos1, pos2)
+            # print(f'Found a route! {route}')
+            self.destination_route = route
 
     
+    def calculate_move_direction(self, player, route):
+        def manhattan_distance(pos1, pos2):
+            return abs((pos1[0] - pos2[0])) + abs((pos1[1] - pos2[1]))            
+
+        current_pos = (player['position']['x'],player['position']['y'])
+        destinations = [destination for destination in route if manhattan_distance(current_pos, destination) <= 1]
+        if len(destinations) == 0:
+            print(f'Route has no points that are distance 1 from here, need to find a new route') 
+            return None
+        destination = destinations[-1]
+        # print(f'Selected point {destination} as my goal for this move')
+        if player['position']['y'] == destination[1]:
+            if player['position']['x'] < destination[0]:
+                return 'RIGHT'
+            elif player['position']['x'] > destination[0]:
+                return 'LEFT'
+        elif player['position']['x'] == destination[0]:
+            if player['position']['y'] < destination[1]:
+                return 'DOWN'
+            elif player['position']['y'] > destination[1]:
+                return 'UP'
+        return None
+        
+
     def tick(self):
         print('TICK!', end=" ")
         gamestate_response = self.game_client.gamestate()
-        self.player = self.get_my_bot(self.name, gamestate_response)
-        if self.player == None:
+        self.find_next_destination_and_route(gamestate_response)
+        player = self.get_my_bot(self.name, gamestate_response)
+        if player == None:
             print("\tBot is gone, run is done.")
             exit(0)
+        self.player = player
         if self.player["state"] == "PICK":
             print("\tPicking up, no new commands")
+            self.destination_item = None
+            self.destination_route = None
             return
         if len(self.player["usableItems"]) > 0:
             if len(gamestate_response["players"]) > 1:
                 item = self.player["usableItems"][0]
                 print(f"\tSHOOT {item}")
-                self.game_client.act(id, "USE")
+                self.game_client.act(self.id, "USE")
                 return
-        item_at_me = [item for item in gamestate_response['items'] if item['position'] == self.player['position']]
-        if len(item_at_me) == 1:
-            item_to_pickup = item_at_me[0]
+        
+        if self.destination_item != None:
+            items_matching_destination = [item for item in gamestate_response['items'] if item == self.destination_item]
+            if len(items_matching_destination) == 0:
+                print(f'Oops! Our destination item is no longer in gamestate, lets find a new destination')
+                self.destination_item == None
+                self.destination_route == None
+                return
+        # TODO: Perhaps limit pickup to chosen destinations, otherwise we could accidentally pickup secondary stuff?            
+        items_at_me = [item for item in gamestate_response['items'] if item['position'] == self.player['position']]
+        if len(items_at_me) == 1 and items_at_me[0] == self.destination_item:
+            item_to_pickup = items_at_me[0]
             discount_price = item_to_pickup["price"] * (100 - item_to_pickup["discountPercent"]) / 100
             if self.player["money"] >= discount_price:
                 print(f"\tPICK UP ITEM {item_to_pickup}")
-                self.game_client.act(id, "PICK")
+                self.game_client.act(self.id, "PICK")                    
                 return
-        # TODO: Replace random function with goal oriented movement: Choose new destinations as needed, and use A* pathfinding algo to find shortest route to them
-        # TODO: Could we use a strategy pattern here to implement different strategies like hoover, random, jason bourne, pacifist, greedy, etc?
-        print("\tMove randomly")
-        self.make_random_move(self.player['position'])
+        # TODO: Verify that destination item still exists in gamestate
+        # TODO: Verify if we are on top of the desired item, in that case, reset route, and item, get a new destination
+        if self.destination_route:
+            # print(f'Move towards destination item {self.destination_item} using route {self.destination_route} from origin {self.player["position"]}')
+            new_move = self.calculate_move_direction(self.player,self.destination_route) # TODO: hmm due to timing it is possible that we shoot over, and having removed the destination spot are in trouble... Hmm if we cannot reach the tail in one move, recalculate route?
+            #print(f'Received move command to move {new_move} to go from {self.player["position"]} to {next_destination}')
+            if new_move:
+                # print(f'Got a new move to move to {new_move}')
+                # self.destination_route.popleft()
+                self.game_client.act(self.id, new_move)
+            # TODO: Some issue here, we can almost reach the target, but before we pick it up, we start moving randomly                
+        # else:
+        #     # TODO: Yes, it may be that route pops to empty, and in that case we go here
+        #     # TODO: Some issue here, we can almost reach the target, but before we pick it up, we start moving randomly
+        #     print(f"\tNo destination nor route: {self.destination_route} -> Move randomly")
+        #     self.make_random_move(self.player['position'])
 
 
 
