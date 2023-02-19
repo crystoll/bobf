@@ -37,5 +37,5 @@ def test_helsinki_map_pathfinding():
     pos1, pos2 = [(2, 2), (5, 5)]
     route = pathfinder.find_route(pos1, pos2)
     print_route_on_map(map, pos1, pos2, route)
-    # assert list(route) == [(3, 2), (4, 2), (5, 2), (5, 3), (5, 4), (5, 5)]
-    assert route == []
+    assert list(route) == [(3, 2), (4, 2), (5, 2), (5, 3), (5, 4), (5, 5)]
+
