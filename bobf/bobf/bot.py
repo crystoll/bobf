@@ -206,4 +206,4 @@ if __name__ == '__main__':
     bot1 = Bot('T1000',Bot.STRATEGY_PICKUP_CLOSEST)
     while True:
         bot1.tick()
-        time.sleep(0.5)
+        time.sleep(0.2)

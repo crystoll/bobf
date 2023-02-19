@@ -10,6 +10,13 @@ To run the client you can go to bobf folder, and do:
 poetry run python bobf/bot.py
 ```
 
+To run unit tests:
+
+```bash
+poetry run pytest
+```
+
+
 ## Using virtualenv and Poetry
 
 ### Here's how to setup initially
@@ -53,9 +60,4 @@ poetry run python bobf/bot.py
 - Weapons have biggest discounts so should always prioritize them - but kinda depends also on distance, especially with others on board
 - Always picking up closest items is not too bad algorithm
 - Health maxes out at 100, so perhaps if health is high, prioritize value items, and when health is low, prioritize beer
-
-## Bugs right now
-
-- For some reason weapons detection does not work properly, weapon on board is not detected, unless it was there from beginning
-
 
