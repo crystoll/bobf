@@ -1,5 +1,13 @@
 # Bots of Black Friday client
 
+## What is here?
+
+basic_bot folder contains very basic bot, with not really much setup. It's based on bots of black friday python sample, but with minimal implementation to make it realize. It only depends on requests-lib so you will need to have Python 3.x, with requests library installed by however means you prefer, for example pip -r requests.txt
+
+This is just a minimal demo for presentation on bots of black friday, could of course be used as basis for your own bot
+
+We also have samples folder for json samples from server, and bobf folder that contains a Poetry-enabled full solution for a working bot. Code is not 100% cleaned up yet, so may require some assembly, and there's definitely some overlap.
+
 ## How to run it
 
 You need to have a server up. You need to configure the server address in .env file. You need to have Python/Virtualenv up and all dependencies installed with Poetry.
