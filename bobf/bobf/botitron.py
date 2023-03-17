@@ -3,8 +3,8 @@ import time
 import random
 import math
 
-api_url = "https://bots-of-black-friday-helsinki.azurewebsites.net"
-# api_url = "http://localhost:8080"
+#api_url = "https://bots-of-black-friday-helsinki.azurewebsites.net"
+api_url = "http://localhost:8080"
 bot_name = "Raaka-Bot"
 visited_coords = []
 MIN_HEALTH = 30
