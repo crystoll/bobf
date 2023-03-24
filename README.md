@@ -27,10 +27,11 @@ poetry run pytest
 
 ## Using virtualenv and Poetry
 
-### Here's how to setup initially
+### Here's how to setup initially (with pyenv and poetry)
 
 ```bash
-pyenv virtualenv 3.11.0 bobf
+pyenv install 3.11
+pyenv virtualenv 3.11 bobf
 pyenv local bobf
 curl -sSL https://install.python-poetry.org | python3 -
 poetry --version
